@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>裂空座贪吃蛇</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        /* 基础样式保持不变 */
+        body { /* 同前 */ }
+        .game-container { /* 同前 */ }
+        canvas { /* 同前 */ }
+        .crt-effect { /* 同前 */ }
+        .controls { /* 同前 */ }
+        button { /* 同前 */ }
+        .game-over { /* 同前 */ }
+        .leaderboard { /* 同前 */ }
+        input { /* 同前 */ }
+        .score { /* 同前 */ }
+    </style>
+</head>
+<body>
+    <!-- 界面元素保持不变 -->
+    
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreElement = document.getElementById('score');
+
+// 游戏设置
+canvas.width = 400;
+canvas.height = 400;
+const gridSize = 20;
+const tileCount = canvas.width / gridSize;
+
+// 裂空座颜色配置
+const RAYQUAZA_COLORS = {
+    body1: '#305840',   // 深绿
+    body2: '#489870',   // 翠绿
+    stripe: '#F8D030',  // 黄纹
+    eye: '#F85030'      // 红眼
+};
+
+// 大师球设计
+function drawMasterBall(x, y) {
+    const centerX = x * gridSize + gridSize/2;
+    const centerY = y * gridSize + gridSize/2;
+    const radius = gridSize/2 - 2;
+
+    // 紫色球体
+    const gradient = ctx.createRadialGradient(
+        centerX, centerY, 0,
+        centerX, centerY, radius
+    );
+    gradient.addColorStop(0, '#9840A8');
+    gradient.addColorStop(1, '#684070');
+    
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    // 黑色腰带
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#202020';
+    ctx.stroke();
+
+    // 金色H图案
+    ctx.beginPath();
+    ctx.moveTo(centerX - radius/2, centerY);
+    ctx.lineTo(centerX + radius/2, centerY);
+    ctx.moveTo(centerX, centerY - radius/2);
+    ctx.lineTo(centerX, centerY + radius/2);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#F8D030';
+    ctx.stroke();
+
+    // 高光
+    ctx.beginPath();
+    ctx.arc(centerX + radius/3, centerY - radius/3, radius/6, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fill();
+}
+
+// 裂空座身体绘制
+function drawRayquazaSegment(x, y, isHead) {
+    const centerX = x * gridSize + gridSize/2;
+    const centerY = y * gridSize + gridSize/2;
+    const bodyWidth = gridSize * 0.8;
+    const bodyHeight = gridSize * 0.6;
+
+    // 身体渐变
+    const gradient = ctx.createLinearGradient(
+        centerX - bodyWidth/2, centerY,
+        centerX + bodyWidth/2, centerY
+    );
+    gradient.addColorStop(0, RAYQUAZA_COLORS.body1);
+    gradient.addColorStop(1, RAYQUAZA_COLORS.body2);
+
+    // 主体
+    ctx.beginPath();
+    ctx.roundRect(
+        centerX - bodyWidth/2,
+        centerY - bodyHeight/2,
+        bodyWidth,
+        bodyHeight,
+        10
+    );
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    // 黄色条纹
+    ctx.beginPath();
+    ctx.moveTo(centerX - bodyWidth/3, centerY - bodyHeight/4);
+    ctx.lineTo(centerX + bodyWidth/3, centerY - bodyHeight/4);
+    ctx.lineTo(centerX + bodyWidth/3, centerY + bodyHeight/4);
+    ctx.lineTo(centerX - bodyWidth/3, centerY + bodyHeight/4);
+    ctx.closePath();
+    ctx.fillStyle = RAYQUAZA_COLORS.stripe;
+    ctx.fill();
+
+    // 头部特征
+    if(isHead) {
+        // 眼睛
+        ctx.beginPath();
+        ctx.arc(centerX + bodyWidth/3, centerY, bodyHeight/3, 0, Math.PI * 2);
+        ctx.fillStyle = RAYQUAZA_COLORS.eye;
+        ctx.fill();
+
+        // 角
+        ctx.beginPath();
+        ctx.moveTo(centerX - bodyWidth/2, centerY - bodyHeight/2);
+        ctx.lineTo(centerX - bodyWidth/2 - 8, centerY - bodyHeight/2 - 15);
+        ctx.lineTo(centerX - bodyWidth/2 + 8, centerY - bodyHeight/2 - 10);
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.fill();
+    }
+}
+
+// 修改后的绘制函数
+function drawSnake() {
+    snake.forEach((segment, index) => {
+        drawRayquazaSegment(segment.x, segment.y, index === 0);
+    });
+}
+
+function drawFood() {
+    drawMasterBall(food.x, food.y);
+}
+
+// 游戏逻辑保持不变...
+// ...（保持之前的移动、碰撞检测、排行榜等功能代码）
+
+// 初始化游戏
+generateFood();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
