@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>裂空座贪吃蛇</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #2b1b17;
+            min-height: 100vh;
+            font-family: 'Press Start 2P', cursive;
+            touch-action: manipulation;
+        }
+
+        .game-container {
+            background: #4a352f;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+            border: 5px solid #6b4e3a;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        canvas {
+            border: 3px solid #6b4e3a;
+            border-radius: 10px;
+            background: #1a1a1a;
+            touch-action: none;
+        }
+
+        .crt-effect {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: repeating-linear-gradient(0deg, 
+                rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1px, 
+                transparent 1px, transparent 2px);
+            z-index: 999;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        button {
+            padding: 15px;
+            font-size: 20px;
+            border: none;
+            border-radius: 10px;
+            background: #ffcb05;
+            color: #2c5aa0;
+            font-family: 'Press Start 2P';
+            text-shadow: 2px 2px #3d7dca;
+            box-shadow: 3px 3px 0 #3d7dca;
+            transition: all 0.1s;
+            touch-action: manipulation;
+        }
+
+        button:active {
+            transform: translate(3px, 3px);
+            box-shadow: none;
+        }
+
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            color: #ffcb05;
+            display: none;
+            z-index: 1000;
+            width: 80%;
+            max-width: 300px;
+        }
+
+        .leaderboard {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(43, 27, 23, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            color: white;
+            font-size: 12px;
+            max-height: 60vh;
+            overflow-y: auto;
+            border: 2px solid #6b4e3a;
+            display: none;
+        }
+
+        input {
+            margin: 10px 0;
+            padding: 8px;
+            font-family: 'Press Start 2P';
+            width: 80%;
+            background: #ffcb05;
+            border: 2px solid #3d7dca;
+        }
+
+        .score {
+            color: #ffcb05;
+            font-size: 24px;
+            margin: 15px 0;
+            text-align: center;
+            text-shadow: 3px 3px #3d7dca;
+        }
+    </style>
+</head>
+<body>
+    <div class="crt-effect"></div>
+    <button id="toggleLeaderboard" onclick="toggleLeaderboard()">排行榜▼</button>
+    <div class="leaderboard">
+        <h3>TOP 10 训练师</h3>
+        <ol id="highscores"></ol>
+    </div>
+    
+    <div class="score">SCORE: <span id="score">0</span></div>
+    <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+    
+    <div class="game-over">
+        <h2>GAME OVER!</h2>
+        <p>最终得分: <span id="finalScore">0</span></p>
+        <input type="text" id="playerName" placeholder="输入名字" maxlength="10">
+        <button onclick="saveScore()">保存</button>
+        <button onclick="resetGame()">再玩一次</button>
+    </div>
+
+    <div class="controls">
+        <div></div>
+        <button onclick="changeDirection('UP')">↑</button>
+        <div></div>
+        <button onclick="changeDirection('LEFT')">←</button>
+        <button onclick="changeDirection('DOWN')">↓</button>
+        <button onclick="changeDirection('RIGHT')">→</button>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreElement = document.getElementById('score');
+
+// 游戏设置
+canvas.width = 350;
+canvas.height = 350;
+const gridSize = 20;
+const tileCount = canvas.width / gridSize;
+
+// 游戏状态
+let snake = [{ x: 8, y: 8 }];
+let food = { x: 15, y: 15 };
+let direction = 'RIGHT';
+let score = 0;
+let moveInterval = 200;
+let lastMoveTime = 0;
+let isGameOver = false;
+
+// 裂空座颜色配置
+const RAYQUAZA_COLORS = {
+    body1: '#305840',
+    body2: '#489870',
+    stripe: '#F8D030',
+    eye: '#F85030'
+};
+
+// 初始化排行榜
+initLeaderboard();
+
+function initLeaderboard() {
+    if(!localStorage.getItem('snakeLeaderboard')) {
+        localStorage.setItem('snakeLeaderboard', JSON.stringify([]));
+    }
+    updateLeaderboardDisplay();
+}
+
+function updateLeaderboardDisplay() {
+    const list = document.getElementById('highscores');
+    list.innerHTML = '';
+    const scores = JSON.parse(localStorage.getItem('snakeLeaderboard'));
+    scores.forEach((entry, index) => {
+        const li = document.createElement('li');
+        li.textContent = `${index + 1}. ${entry.name}: ${entry.score}`;
+        list.appendChild(li);
+    });
+}
+
+function toggleLeaderboard() {
+    const lb = document.querySelector('.leaderboard');
+    lb.style.display = lb.style.display === 'none' ? 'block' : 'none';
+}
+
+function changeDirection(newDir) {
+    const oppositeDirs = { UP: 'DOWN', DOWN: 'UP', LEFT: 'RIGHT', RIGHT: 'LEFT' };
+    if (newDir !== oppositeDirs[direction]) direction = newDir;
+}
+
+function generateFood() {
+    do {
+        food.x = Math.floor(Math.random() * tileCount);
+        food.y = Math.floor(Math.random() * tileCount);
+    } while (snake.some(seg => seg.x === food.x && seg.y === food.y));
+}
+
+function drawRayquazaSegment(x, y, isHead) {
+    const centerX = x * gridSize + gridSize/2;
+    const centerY = y * gridSize + gridSize/2;
+    const bodyWidth = gridSize * 0.8;
+    const bodyHeight = gridSize * 0.6;
+
+    // 身体渐变
+    const gradient = ctx.createLinearGradient(
+        centerX - bodyWidth/2, centerY,
+        centerX + bodyWidth/2, centerY
+    );
+    gradient.addColorStop(0, RAYQUAZA_COLORS.body1);
+    gradient.addColorStop(1, RAYQUAZA_COLORS.body2);
+
+    // 主体
+    ctx.beginPath();
+    ctx.roundRect(
+        centerX - bodyWidth/2,
+        centerY - bodyHeight/2,
+        bodyWidth,
+        bodyHeight,
+        10
+    );
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    // 黄色条纹
+    ctx.beginPath();
+    ctx.moveTo(centerX - bodyWidth/3, centerY - bodyHeight/4);
+    ctx.lineTo(centerX + bodyWidth/3, centerY - bodyHeight/4);
+    ctx.lineTo(centerX + bodyWidth/3, centerY + bodyHeight/4);
+    ctx.lineTo(centerX - bodyWidth/3, centerY + bodyHeight/4);
+    ctx.closePath();
+    ctx.fillStyle = RAYQUAZA_COLORS.stripe;
+    ctx.fill();
+
+    // 头部特征
+    if(isHead) {
+        // 眼睛
+        ctx.beginPath();
+        ctx.arc(centerX + bodyWidth/3, centerY, bodyHeight/3, 0, Math.PI * 2);
+        ctx.fillStyle = RAYQUAZA_COLORS.eye;
+        ctx.fill();
+
+        // 角
+        ctx.beginPath();
+        ctx.moveTo(centerX - bodyWidth/2, centerY - bodyHeight/2);
+        ctx.lineTo(centerX - bodyWidth/2 - 8, centerY - bodyHeight/2 - 15);
+        ctx.lineTo(centerX - bodyWidth/2 + 8, centerY - bodyHeight/2 - 10);
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.fill();
+    }
+}
+
+function drawMasterBall(x, y) {
+    const centerX = x * gridSize + gridSize/2;
+    const centerY = y * gridSize + gridSize/2;
+    const radius = gridSize/2 - 2;
+
+    // 紫色球体
+    const gradient = ctx.createRadialGradient(
+        centerX, centerY, 0,
+        centerX, centerY, radius
+    );
+    gradient.addColorStop(0, '#9840A8');
+    gradient.addColorStop(1, '#684070');
+    
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    // 黑色腰带
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#202020';
+    ctx.stroke();
+
+    // 金色H图案
+    ctx.beginPath();
+    ctx.moveTo(centerX - radius/2, centerY);
+    ctx.lineTo(centerX + radius/2, centerY);
+    ctx.moveTo(centerX, centerY - radius/2);
+    ctx.lineTo(centerX, centerY + radius/2);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#F8D030';
+    ctx.stroke();
+
+    // 高光
+    ctx.beginPath();
+    ctx.arc(centerX + radius/3, centerY - radius/3, radius/6, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fill();
+}
+
+function gameLoop(currentTime) {
+    if (isGameOver) return;
+    
+    if (currentTime - lastMoveTime < moveInterval) {
+        requestAnimationFrame(gameLoop);
+        return;
+    }
+    lastMoveTime = currentTime;
+
+    const head = { x: snake[0].x, y: snake[0].y };
+    switch (direction) {
+        case 'UP': head.y--; break;
+        case 'DOWN': head.y++; break;
+        case 'LEFT': head.x--; break;
+        case 'RIGHT': head.x++; break;
+    }
+
+    if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+        gameOver();
+        return;
+    }
+
+    if (snake.some((seg, i) => i > 0 && seg.x === head.x && seg.y === head.y)) {
+        gameOver();
+        return;
+    }
+
+    if (head.x === food.x && head.y === food.y) {
+        score += 10;
+        scoreElement.textContent = score;
+        generateFood();
+        snake.push({});
+    }
+
+    snake.unshift(head);
+    if (head.x !== food.x || head.y !== food.y) {
+        snake.pop();
+    }
+
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawMasterBall(food.x, food.y);
+    snake.forEach((seg, i) => drawRayquazaSegment(seg.x, seg.y, i === 0));
+
+    requestAnimationFrame(gameLoop);
+}
+
+function gameOver() {
+    isGameOver = true;
+    document.querySelector('.game-over').style.display = 'block';
+    document.getElementById('finalScore').textContent = score;
+    document.getElementById('playerName').focus();
+}
+
+function saveScore() {
+    const name = document.getElementById('playerName').value.trim() || '未知训练师';
+    const scores = JSON.parse(localStorage.getItem('snakeLeaderboard'));
+    
+    scores.push({ name, score });
+    scores.sort((a, b) => b.score - a.score);
+    
+    if(scores.length > 10) scores.length = 10;
+    
+    localStorage.setItem('snakeLeaderboard', JSON.stringify(scores));
+    updateLeaderboardDisplay();
+    document.querySelector('.game-over').style.display = 'none';
+}
+
+function resetGame() {
+    snake = [{ x: 8, y: 8 }];
+    direction = 'RIGHT';
+    score = 0;
+    scoreElement.textContent = score;
+    generateFood();
+    isGameOver = false;
+    document.querySelector('.game-over').style.display = 'none';
+    requestAnimationFrame(gameLoop);
+}
+
+// 启动游戏
+generateFood();
+requestAnimationFrame(gameLoop);
+
+// 事件监听
+document.getElementById('playerName').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') saveScore();
+});
+</script>
+</body>
+</html>
